@@ -22,6 +22,7 @@ func update_settings() -> void:
 			"hint": PROPERTY_HINT_ENUM, "hint_string": "String;"
 		}
 		ProjectSettings.add_property_info(property_info)
+		ProjectSettings.set_as_basic(DICT_SETTING_PATH, true)
 	overriden_properties = ProjectSettings.get_setting(DICT_SETTING_PATH, default_dict)
 	
 	if !ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
@@ -31,6 +32,7 @@ func update_settings() -> void:
 			"name": VERBOSE_SETTING_PATH, "type": TYPE_BOOL
 		}
 		ProjectSettings.add_property_info(property_info)
+		ProjectSettings.set_as_basic(VERBOSE_SETTING_PATH, false)
 	verbose = ProjectSettings.get_setting(VERBOSE_SETTING_PATH, false)
 
 func _enter_tree() -> void:

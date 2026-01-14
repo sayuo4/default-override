@@ -26,17 +26,17 @@ ignore their rotation. If you're making a game that regularly rotates the
 camera, then this setting should probably be set to false.
 
 ## Settings
-**Overriden Properties** - A dictionary containing pairs from node property paths
-to their new default value. The first entry is an example of how add an entry
-manually.
+**Overriden Properties** - A dictionary containing pairs from node property
+paths to their new default value. The first entry is an example of how add an
+entry manually.
 
-**Apply to Inherited Classes** - If true, default values will also be overriden for
-node types that inherit the class they were specified for. For example, if you
-set y_sort to true for Node2Ds, then it will also be changed for Sprite2Ds.
+**Apply to Inherited Classes** - If true, default values will also be overriden
+for node types that inherit the class they were specified for. For example, if
+you set y_sort to true for Node2Ds, then it will also be changed for Sprite2Ds.
 Otherwise, it will only apply to the base class.
 
-**Verbose Output** - If true, the plugin will output text when it does something.
-Useful for debugging the plugin, but not for regular use.
+**Verbose Output** - If true, the plugin will output text when it does
+something. Useful for debugging the plugin, but not for regular use.
 
 ## Limitations
 Most of these limitations are intentional, but they're still worth mentioning.
@@ -57,6 +57,7 @@ the options in Project Settings would be added on top.
 base classes or also to inherited ones.
 
 ## YouTube
-This plugin was created by me, [DevPoodle](https://www.youtube.com/@devpoodle)! I'll probably have a video out about
-it soon, with a more thorough explanation on how the plugin works and the
-choices I took while I making it. So keep an eye out for that. Thanks!
+This plugin was created by me, [DevPoodle](https://www.youtube.com/@devpoodle)!
+I'll probably have a video out about it soon, with a more thorough explanation
+on how the plugin works and the choices I took while I making it. So keep an eye
+out for that. Thanks!

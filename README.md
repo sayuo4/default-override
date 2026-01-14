@@ -1,4 +1,4 @@
-# Default Value Overrider
+# Default Override
 This is a [Godot](https://godotengine.org/) 4.5 plugin that lets you override
 the default values of node properties.
 

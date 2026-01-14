@@ -1,9 +1,9 @@
 @tool
 extends EditorPlugin
 
-const DICT_SETTING_PATH := "plugins/editor/default_value_overrider/overriden_properties"
-const INHERITED_SETTING_PATH := "plugins/editor/default_value_overrider/apply_to_inherited_classes"
-const VERBOSE_SETTING_PATH := "plugins/editor/default_value_overrider/verbose_output"
+const DICT_SETTING_PATH := "plugins/editor/default_override/overriden_properties"
+const INHERITED_SETTING_PATH := "plugins/editor/default_override/apply_to_inherited_classes"
+const VERBOSE_SETTING_PATH := "plugins/editor/default_override/verbose_output"
 
 var default_dict: Dictionary[String, Variant] = { "ExampleNode:example_property": 0.0 }
 var overriden_properties: Dictionary[String, Variant]

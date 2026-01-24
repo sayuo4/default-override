@@ -1,13 +1,13 @@
 @tool
 extends EditorPlugin
 
-const DICT_SETTING_PATH := "plugins/editor/default_override/overriden_properties"
-const INHERITED_SETTING_PATH := "plugins/editor/default_override/apply_to_inherited_classes"
+const NON_INHERITED_DICT_SETTING_PATH := "plugins/editor/default_override/non_inherited_overriden_properties"
+const INHERITED_DICT_SETTING_PATH := "plugins/editor/default_override/inherited_overriden_properties"
 const VERBOSE_SETTING_PATH := "plugins/editor/default_override/verbose_output"
 
 var default_dict: Dictionary[String, Variant] = { "ExampleNode:example_property": 0.0 }
-var overriden_properties: Dictionary[String, Variant]
-var apply_to_inherited := true
+var non_inherited_overriden_properties: Dictionary[String, Variant]
+var inherited_overriden_properties: Dictionary[String, Variant]
 var verbose := false
 
 #region - Recursively find necessary nodes in editor
@@ -40,27 +40,25 @@ func find_property_recursively(node: Node, path: String) -> EditorProperty:
 #endregion
 #region - Initialize and deinitialize plugin and plugin settings
 
-func update_settings() -> void:
-	if !ProjectSettings.has_setting(DICT_SETTING_PATH):
-		ProjectSettings.set_setting(DICT_SETTING_PATH, default_dict)
-		ProjectSettings.set_initial_value(DICT_SETTING_PATH, default_dict)
+func setup_dict_setting(path: String) -> Dictionary[String, Variant]:
+	# Duplicate to make sure different settings don't reference each other.
+	var default_value := default_dict.duplicate()
+	
+	if !ProjectSettings.has_setting(path):
+		ProjectSettings.set_setting(path, default_value)
+		ProjectSettings.set_initial_value(path, default_value)
 		var property_info := {
-			"name": DICT_SETTING_PATH , "type": TYPE_DICTIONARY,
+			"name": path , "type": TYPE_DICTIONARY,
 			"hint": PROPERTY_HINT_ENUM, "hint_string": "String;"
 		}
 		ProjectSettings.add_property_info(property_info)
-		ProjectSettings.set_as_basic(DICT_SETTING_PATH, true)
-	overriden_properties = ProjectSettings.get_setting(DICT_SETTING_PATH, default_dict)
+		ProjectSettings.set_as_basic(path, true)
 	
-	if !ProjectSettings.has_setting(INHERITED_SETTING_PATH):
-		ProjectSettings.set_setting(INHERITED_SETTING_PATH, true)
-		ProjectSettings.set_initial_value(INHERITED_SETTING_PATH, true)
-		var property_info := {
-			"name": INHERITED_SETTING_PATH, "type": TYPE_BOOL
-		}
-		ProjectSettings.add_property_info(property_info)
-		ProjectSettings.set_as_basic(INHERITED_SETTING_PATH, true)
-	apply_to_inherited = ProjectSettings.get_setting(INHERITED_SETTING_PATH, true)
+	return ProjectSettings.get_setting(path, default_value)
+
+func update_settings() -> void:
+	non_inherited_overriden_properties = setup_dict_setting(NON_INHERITED_DICT_SETTING_PATH)
+	inherited_overriden_properties = setup_dict_setting(INHERITED_DICT_SETTING_PATH)
 	
 	if !ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
 		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, false)
@@ -91,7 +89,7 @@ func _exit_tree() -> void:
 
 func _disable_plugin() -> void:
 	for setting: String in PackedStringArray([
-	DICT_SETTING_PATH, INHERITED_SETTING_PATH, VERBOSE_SETTING_PATH]):
+	NON_INHERITED_DICT_SETTING_PATH, INHERITED_DICT_SETTING_PATH, VERBOSE_SETTING_PATH]):
 		if ProjectSettings.has_setting(setting):
 			ProjectSettings.set_setting(setting, null)
 
@@ -106,25 +104,32 @@ var node_is_new := false
 func new_node_created() -> void:
 	node_is_new = true
 
+func override_node_properties(node: Node, overriden_properties_dict: Dictionary, apply_to_inherited: bool) -> void:
+	for path: NodePath in overriden_properties_dict:
+		var set_default := node.get_class() == path.get_name(0)
+		if apply_to_inherited:
+			set_default = node.is_class(path.get_name(0))
+		if set_default:
+			var key := path as String
+			if verbose:
+				print("Default Value Set: " + key + " = " + str(overriden_properties_dict[key]))
+			node.set_indexed(path.slice(1) as String, overriden_properties_dict[key])
+
 ## Connected to scene_tree_dock's 'node_created' signal.
 func node_instantiated(node: Node) -> void:
 	if node_is_new:
 		update_settings()
-		for path: NodePath in overriden_properties:
-			var set_default := node.get_class() == path.get_name(0)
-			if apply_to_inherited:
-				set_default = node.is_class(path.get_name(0))
-			if set_default:
-				var key := path as String
-				if verbose:
-					print("Default Value Set: " + key + " = " + str(overriden_properties[key]))
-				node.set_indexed(path.slice(1) as String, overriden_properties[key])
+		# Overrides inherited first to give priority for non-inherited.
+		override_node_properties(node, inherited_overriden_properties, true)
+		override_node_properties(node, non_inherited_overriden_properties, false)
+	
 	node_is_new = false
 
 #endregion
-#region - Add "Set As Default Value" option to inspector shortcut menu
+#region - Add "Set As Default Value" and "Set As Default Value (Inherited)" options to inspector shortcut menu
 
-const POPUP_ITEM_ID := 9
+const NON_INHERITED_POPUP_ITEM_ID := 9
+const INHERITED_POPUP_ITEM_ID := 10
 
 var editor_property: EditorProperty
 var popup: PopupMenu
@@ -165,29 +170,55 @@ func try_to_setup_popup() -> void:
 	
 	editing_popup = true
 	if popup:
-		if popup.id_pressed.is_connected(set_new_default_value):
-			popup.id_pressed.disconnect(set_new_default_value)
-		if popup.get_item_index(POPUP_ITEM_ID) != -1:
-			popup.remove_item(popup.get_item_index(POPUP_ITEM_ID))
+		for set_default_value: Callable in [set_new_non_inherited_default_value, set_new_inherited_default_value]:
+			if popup.id_pressed.is_connected(set_default_value):
+				popup.id_pressed.disconnect(set_default_value)
+		
+		for popup_item_id: int in [NON_INHERITED_POPUP_ITEM_ID, INHERITED_POPUP_ITEM_ID]:
+			if popup.get_item_index(popup_item_id) != -1:
+				popup.remove_item(popup.get_item_index(popup_item_id))
 	
 	popup = new_popup
-	popup.add_icon_item(preload("icon.svg"), "Set As Default Value", POPUP_ITEM_ID)
-	if !popup.id_pressed.is_connected(set_new_default_value):
-		popup.id_pressed.connect(set_new_default_value)
+	popup.add_icon_item(preload("icon.svg"), "Set As Default Value", NON_INHERITED_POPUP_ITEM_ID)
+	popup.add_icon_item(preload("icon.svg"), "Set As Default Value (Inherited)", INHERITED_POPUP_ITEM_ID)
+	
+	for set_default_value: Callable in [set_new_non_inherited_default_value, set_new_inherited_default_value]:
+		if not popup.id_pressed.is_connected(set_default_value):
+			popup.id_pressed.connect(set_default_value)
+	
 	if !popup.menu_changed.is_connected(popup_changed):
 		popup.menu_changed.connect(popup_changed)
+	
 	editing_popup = false
 
-func set_new_default_value(id: int) -> void:
-	if id != POPUP_ITEM_ID:
+# Uses a Callable to work around an issue where passing property dictionaries directly
+# causes the reference to be lost after calling update_settings().
+func get_new_default_value(id: int, ITEM_ID: int, apply_value_callable: Callable) -> void:
+	if id != ITEM_ID:
 		return
+	
 	var property := editor_property.get_edited_property()
 	var path := editor_property.get_edited_object().get_class() + ":" + property
 	var default := editor_property.get_edited_object().get(property)
 	
 	update_settings()
-	overriden_properties[path] = default
+	apply_value_callable.call(path, default)
+	
 	if verbose:
 		print("New Default Value: " + path + " = "+ str(default))
+
+# Uses separate method because Godot treats a Callable with different bound parameters as identical,
+# preventing connecting them to the same signal twice.
+func set_new_non_inherited_default_value(id: int) -> void:
+	get_new_default_value(id, NON_INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
+			non_inherited_overriden_properties[path] = default
+			inherited_overriden_properties.erase(path)
+	)
+
+func set_new_inherited_default_value(id: int) -> void:
+	get_new_default_value(id, INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
+			inherited_overriden_properties[path] = default
+			non_inherited_overriden_properties.erase(path)
+	)
 
 #endregion
